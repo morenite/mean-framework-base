@@ -1,0 +1,31 @@
+extends ../../../views/layouts/default
+
+block content
+	.container
+		.row
+			.col-md-12
+				.page-header
+					h1 Pendaftaran Mata Kuliah
+
+		.row
+			.col-md-3.col-md-offset-2
+				p
+					strong Nomor Induk
+				p #{student.id_number}
+
+				p
+					strong Nama
+				p #{student.name}
+				
+				p
+					strong Program Studi
+				p #{student.major.name}
+
+			.col-md-5
+				form(action='/users/#{student._id}/enrollments/add', method='post')
+					.form-group
+						select.form-control(name='schedule')
+							each schedule in schedules
+								option(value="#{schedule._id}") #{schedule.course.name}
+
+						input.btn.btn-block.btn-success(type='submit', style='margin-top: 10px;', value='Ikuti Mata Kuliah')
