@@ -6,10 +6,7 @@ var controller = function() {
 		ObjectId	= mongoose.Types.ObjectId
 		;
 
-	var	Enrollment	= require('../../models/EnrollmentSchema'),
-		Major 		= require('../../models/MajorSchema'),
-		Schedule 	= require('../../models/ScheduleSchema'),
-		User 		= require('../../models/UserSchema')
+	var	User 		= require('../../models/UserSchema')
 		;
 
 	var auth 		= require('../../libs/auth')(),
@@ -61,112 +58,6 @@ var controller = function() {
 					}
 					else {
 						res.redirect('/users/add');
-					}
-				});
-			}
-		}
-	];
-
-	actions.detail_enrollments = [
-		{
-			path 	: '/:id/enrollments',
-			method	: 'get',
-			handler	: function(req, res, next) {
-
-			}
-		},
-		{
-			path 	: '/:id/enrollments/add',
-			method	: 'get',
-			handler	: function(req, res, next) {
-				async.parallel(
-					[
-						function(callback) {
-							Enrollment.find({"student": ObjectId(req.params.id)})
-							.exec(function(findError, enrollments) {
-								if (findError) {
-									console.log(findError);
-									callback(findError, null);
-								}
-								else {
-									var alreadyEnrolled = [];
-									_.each(enrollments, function(enrollment) {
-										alreadyEnrolled.push(enrollment.schedule);
-									});
-
-									Schedule.find({
-										"_id": {
-											$nin: alreadyEnrolled
-										}
-									})
-									.populate('course')
-									.populate('lecturer')
-									.exec(callback);
-								}
-							});
-						},
-						function(callback) {
-							User.findOne({"_id": ObjectId(req.params.id)})
-							.populate('major')
-							.exec(callback);
-						}
-					],
-					function(asyncError, results) {
-						if (asyncError) {
-							console.log(asyncError);
-							res.status(500).render('../../../views/errors/5xx');
-						}
-						else {
-							res.render('detail_enrollments_add', {
-								title: 'Pendaftaran Mata Kuliah',
-								schedules: results[0],
-								student: results[1]
-							});
-						}
-					}
-				);			
-			}
-		},
-		{
-			path 	: '/:id/enrollments/add',
-			method	: 'post',
-			handler	: function(req, res, next) {
-				Schedule.findOne({"_id": ObjectId(req.body.schedule)})
-				.exec(function(findError, schedule) {
-					if (findError) {
-						console.log(findError);
-						res.status(500).render('../../../views/errors/5xx');
-					}
-					else {
-						if (schedule == null) {
-							res.status(404).render('../../../views/errors/404');
-						}
-						else {
-							var enrollment = new Enrollment();
-
-							enrollment.schedule = schedule._id;
-							enrollment.course = schedule.course;
-							enrollment.student = ObjectId(req.params.id);
-
-							enrollment.created = new Date();
-
-							enrollment.save(function(saveError) {
-								if (saveError) {
-									console.log(saveError);
-									res.status(500).render('../../../views/errors/5xx');
-								}
-								else {
-									schedule.enrollments.push(enrollment);
-									schedule.save();
-
-									User.findByIdAndUpdate(ObjectId(req.params.id), {"enrollments": {$push: enrollment}}).exec();
-
-
-
-									res.redirect('/users/' + req.params.id + '/enrollments/add');
-								}
-							});
-						}
 					}
 				});
 			}
@@ -305,30 +196,6 @@ var controller = function() {
 		}
 	};
 
-	actions.api_identity = {
-		path 	: '/identity',
-		prefix	: 'api',
-		method	: 'post',
-		before	: auth.check,
-		handler	: function(req, res, next) {
-			User.findOne({"identifier": ObjectId(req.body.identifier)})
-			.populate('major')
-			.exec(function(findError, user) {
-				if (findError) {
-					return API.error(res, findError);
-				}
-				else {
-					if (user == null) {
-						return API.invalid.json(res, 'User tidak ditemukan.');
-					}
-					else {
-						return API.success.json(res, user);
-					}
-				}
-			});
-		}
-	};
-
 	actions.api_details = [
 		{
 			path 	: '/:id',
@@ -371,77 +238,6 @@ var controller = function() {
 				}));
 			}
 		},
-	];
-
-	actions.api_user_enrollments = [
-		{
-			path 	: '/:id/enrollments',
-			prefix	: 'api',
-			method	: 'get',
-			before	: passport.authenticate('bearer', { session: false }),
-			handler	: function(req, res, next) {
-				User.findOne({"_id": ObjectId(req.params.id)})
-				.populate('enrollments')
-				.exec(function(findError, user) {
-					if (findError) {
-						return API.error.json(res, findError);
-					}
-					else {
-						return API.success.json(res, user.enrollments);
-					}
-				});
-			}
-		},
-		{
-			path 	: '/:id/enrollments',
-			prefix	: 'api',
-			method	: 'post',
-			before	: passport.authenticate('bearer', { session: false }),
-			handler	: function(req, res, next) {
-				
-			}
-		}
-	];
-
-	actions.api_user_schedules = [
-		{
-			path 	: '/:id/schedules',
-			prefix	: 'api',
-			method	: 'get',
-			before	: passport.authenticate('bearer', { session: false }),
-			handler	: function(req, res, next) {
-				User.findOne({"_id": ObjectId(req.params.id)})
-				.populate('schedules')
-				.exec(function(findError, user) {
-					if (findError) {
-						return res.status(500).json({
-							success: false,
-							message: "",
-							system_error: {
-								message: "",
-								error: findError
-							}
-						});
-					}
-					else {
-						res.status(200).json({
-							success: true,
-							message: "",
-							results: user.schedules
-						});
-					}
-				});
-			}
-		},
-		{
-			path 	: '/:id/schedules',
-			prefix	: 'api',
-			method	: 'post',
-			before	: passport.authenticate('bearer', { session: false }),
-			handler	: function(req, res, next) {
-				
-			}
-		}
 	];
 
 	return actions;
